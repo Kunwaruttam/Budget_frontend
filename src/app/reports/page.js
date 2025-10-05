@@ -464,7 +464,7 @@ export default function ReportsPage() {
     )
   }
 
-  if (!authUser || !reportData) return null
+  if (!authUser) return null
 
   return (
     <div className="min-h-screen bg-background">

@@ -426,6 +426,7 @@ export default function ExpensesPage() {
   const [editingExpense, setEditingExpense] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [timeoutReached, setTimeoutReached] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const { user: authUser, loading: authLoading } = useAuth()
@@ -438,6 +439,16 @@ export default function ExpensesPage() {
     currentOrganization
   } = useProfile()
 
+  // Add a timeout fallback to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setTimeoutReached(true)
+      setIsLoading(false)
+    }, 10000) // 10 second timeout
+
+    return () => clearTimeout(timeout)
+  }, [])
+
   useEffect(() => {
     // Wait for auth and profile loading to complete
     if (!authLoading && !profileLoading) {
@@ -445,9 +456,9 @@ export default function ExpensesPage() {
         router.push('/auth/login')
         return
       }
-      if (currentProfile) {
-        loadData()
-      }
+      // Load expense data even if profile is still loading
+      // This prevents blank screen on first login
+      loadData()
     }
   }, [authUser, authLoading, profileLoading, currentProfile, router])
 
@@ -686,7 +697,7 @@ export default function ExpensesPage() {
   const safeTotalExpenses = Number.isFinite(totalExpenses) ? totalExpenses : 0
   const safeThisMonthExpenses = Number.isFinite(thisMonthExpenses) ? thisMonthExpenses : 0
 
-  if (authLoading || profileLoading || isLoading) {
+  if ((authLoading || profileLoading || isLoading) && !timeoutReached) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -695,6 +706,11 @@ export default function ExpensesPage() {
         </div>
       </div>
     )
+  }
+
+  // If timeout reached, show page anyway with whatever data we have
+  if (timeoutReached && !authUser) {
+    return null
   }
 
   if (!authUser) return null

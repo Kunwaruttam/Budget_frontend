@@ -314,6 +314,7 @@ export default function BudgetPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingBudget, setEditingBudget] = useState(null)
+  const [timeoutReached, setTimeoutReached] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const { user: authUser, loading: authLoading } = useAuth()
@@ -325,6 +326,16 @@ export default function BudgetPage() {
     isPersonalProfile 
   } = useProfile()
 
+  // Add a timeout fallback to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setTimeoutReached(true)
+      setIsLoading(false)
+    }, 10000) // 10 second timeout
+
+    return () => clearTimeout(timeout)
+  }, [])
+
   useEffect(() => {
     // Wait for auth and profile loading to complete
     if (!authLoading && !profileLoading) {
@@ -332,9 +343,9 @@ export default function BudgetPage() {
         router.push('/auth/login')
         return
       }
-      if (currentProfile) {
-        loadBudgetData()
-      }
+      // Load budget data even if profile is still loading
+      // This prevents blank screen on first login
+      loadBudgetData()
     }
   }, [authUser, authLoading, profileLoading, currentProfile, router])
 
@@ -466,7 +477,7 @@ export default function BudgetPage() {
   const totalSpent = budgets.reduce((sum, budget) => sum + (parseFloat(budget.total_expenses) || 0), 0)
   const overallUtilization = totalAllocated > 0 ? (totalSpent / totalAllocated) * 100 : 0
 
-  if (isLoading) {
+  if ((authLoading || profileLoading || isLoading) && !timeoutReached) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -475,6 +486,11 @@ export default function BudgetPage() {
         </div>
       </div>
     )
+  }
+
+  // If timeout reached, show page anyway with whatever data we have
+  if (timeoutReached && !authUser) {
+    return null
   }
 
   return (
